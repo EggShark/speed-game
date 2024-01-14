@@ -34,6 +34,8 @@ impl Game for SpeedGame {
     fn update(&mut self, engine: &mut Engine) {
         let dt = engine.get_frame_delta_time();
 
+        println!("dt: {}", dt);
+
         self.player.update(dt, engine);
     }
 
