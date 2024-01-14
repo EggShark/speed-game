@@ -1,3 +1,7 @@
+mod character;
+
+use character::Character;
+
 use bottomless_pit::Game;
 use bottomless_pit::engine_handle::{Engine, EngineBuilder};
 use bottomless_pit::render::RenderInformation;
@@ -7,29 +11,33 @@ fn main() {
         .build()
         .unwrap();
 
-    let game = SpeedGame::new();
+    let game = SpeedGame::new(&mut engine);
 
     engine.run(game);
 }
 
-
-
 struct SpeedGame {
-
+    player: Character
 }
 
 impl SpeedGame {
-    pub fn new() -> Self {
-        Self{}
+    pub fn new(engine: &mut Engine) -> Self {
+        let player = Character::new(engine);
+
+        Self {
+            player,
+        }
     }
 }
 
 impl Game for SpeedGame {
-    fn update(&mut self, engine_handle: &mut Engine) {
-        
+    fn update(&mut self, engine: &mut Engine) {
+        let dt = engine.get_frame_delta_time();
+
+        self.player.update(dt, engine);
     }
 
-    fn render<'pass, 'others>(&'others mut self, mut render_handle: RenderInformation<'pass, 'others>) where 'others: 'pass {
-        
+    fn render<'pass, 'others>(&'others mut self, mut renderer: RenderInformation<'pass, 'others>) where 'others: 'pass {
+        self.player.draw(&mut renderer);
     }
 }
