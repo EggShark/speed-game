@@ -78,7 +78,7 @@ impl Character {
 
         self.pos += self.speed.scale(dt);
 
-        print!("{esc}c", esc = 27 as char);
+        // messed up on windows print!("{esc}c", esc = 27 as char);
         println!("speed: {:?}", self.speed);
         println!("fastest y: {:?}", self.fastest_y);
         println!("dt: {}", dt);
