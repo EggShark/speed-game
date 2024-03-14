@@ -3,6 +3,7 @@ use bottomless_pit::engine_handle::Engine;
 use bottomless_pit::input::Key;
 use bottomless_pit::material::{Material, MaterialBuilder};
 use bottomless_pit::render::RenderInformation;
+use bottomless_pit::texture::Texture;
 use bottomless_pit::vectors::Vec2;
 
 const PLAYER_ACCELERATION: f32 = 60.0;
@@ -22,7 +23,11 @@ pub struct Character {
 
 impl Character {
     pub fn new(engine: &mut Engine) -> Self {
-        let material = MaterialBuilder::new().build(engine);
+        let texture = Texture::new(engine, "assets/shork.png");
+
+        let material = MaterialBuilder::new()
+            .add_texture(texture)
+            .build(engine);
 
         Self {
             pos: Vec2{x: 0.0, y: 0.0},
