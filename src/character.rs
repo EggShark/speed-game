@@ -39,6 +39,23 @@ impl Character {
     }
 
     pub fn update(&mut self, dt: f32, engine: &mut Engine) {
+        if self.grounded {
+            self.grounded_movement(dt, engine);
+        } else {
+            self.air_movment(dt);
+        }
+
+        self.pos += self.speed.scale(dt);
+
+
+        print!("{esc}c", esc = 27 as char);
+        println!("speed: {:?}", self.speed);
+        println!("fastest y: {:?}", self.fastest_y);
+        println!("dt: {:.5}", dt);
+        println!("frame rate: {:.0}", engine.get_stable_fps());
+    }
+
+    fn grounded_movement(&mut self, dt: f32, engine: &mut Engine) {
         let mut move_x: f32 = 0.0;
 
         if engine.is_key_down(Key::D) {
@@ -62,36 +79,31 @@ impl Character {
             self.speed.x = move_towards(self.speed.x, move_x * PLAYER_MAX_SPEED, max_speed);
         }
 
-        // shoe in before solids/platforms are added
-        if self.pos.y >= 600.0 - 80.0 {
-            self.grounded = true;
-            self.pos.y = 600.0 - 80.0;
-        }
-
-        if !self.grounded {
-            self.speed.y += PLAYER_FALL_ACCELERATION * dt;
-        } else {
-            self.speed.y = 0.0;
+        if engine.is_key_down(Key::Space) {
+            self.speed.y = -100.0;
+            self.grounded = false;
         }
 
         // caps both backwards and forwards speed
         self.speed.x = self.speed.x.min(PLAYER_MAX_SPEED);
         self.speed.x = self.speed.x.max(-PLAYER_MAX_SPEED);
 
-        self.speed.y = self.speed.y.min(MAX_FALL_SPEED);
         self.fastest_y = self.speed.y.max(self.fastest_y);
+    }
 
-        self.pos += self.speed.scale(dt);
-
-        // messed up on windows print!("{esc}c", esc = 27 as char);
-        println!("speed: {:?}", self.speed);
-        println!("fastest y: {:?}", self.fastest_y);
-        println!("dt: {}", dt);
-        println!("frame rate: {}", 1.0 / dt);
+    fn air_movment(&mut self, dt: f32) {
+        self.speed.y += PLAYER_FALL_ACCELERATION * dt;
+        self.speed.y = self.speed.y.min(MAX_FALL_SPEED);
+        // shoe in before solids/platforms are added
+        if self.pos.y >= 600.0 - 114.0 {
+            self.grounded = true;
+            self.pos.y = 600.0 - 114.0;
+            self.speed.y = 0.0;
+        }
     }
 
     pub fn draw<'p, 'o>(&'o mut self, renderer: &mut RenderInformation<'p, 'o>) where 'o: 'p {
-        self.material.add_rectangle(self.pos, Vec2{x: 40.0, y: 80.0}, Colour::WHITE, &renderer);
+        self.material.add_rectangle(self.pos, Vec2{x: 96.0, y: 114.0}, Colour::WHITE, &renderer);
 
         self.material.draw(renderer);
     }
@@ -111,4 +123,10 @@ fn move_towards(current: f32, target: f32, max_delta: f32) -> f32 {
 
         return current + sign * max_delta;
     }
+}
+
+enum PlayerState {
+    Grounded,
+    Jumping,
+    Falling,
 }

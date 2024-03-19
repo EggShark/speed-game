@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bottomless-pit = {git = "https://github.com/EggShark/bottomless-pit.git"}
+# bottomless-pit = {path = "../bottomless-pit"}

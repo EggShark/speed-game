@@ -1,4 +1,5 @@
 mod character;
+mod level;
 
 use character::Character;
 
@@ -8,6 +9,7 @@ use bottomless_pit::render::RenderInformation;
 
 fn main() {
     let mut engine = EngineBuilder::new()
+        .with_resolution((600, 600))
         .build()
         .unwrap();
 
