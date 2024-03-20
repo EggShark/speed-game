@@ -3,7 +3,7 @@ use bottomless_pit::engine_handle::Engine;
 use bottomless_pit::input::Key;
 use bottomless_pit::material::{Material, MaterialBuilder};
 use bottomless_pit::render::RenderInformation;
-use bottomless_pit::texture::Texture;
+use bottomless_pit::texture::{SamplerType, Texture};
 use bottomless_pit::vec2;
 use bottomless_pit::vectors::Vec2;
 
@@ -29,7 +29,7 @@ pub struct Character {
 
 impl Character {
     pub fn new(engine: &mut Engine) -> Self {
-        let texture = Texture::new(engine, "assets/shork.png");
+        let texture = Texture::new_with_sampler(engine, "assets/shork.png", SamplerType::NearestNeighbor);
 
         let material = MaterialBuilder::new()
             .add_texture(texture)
