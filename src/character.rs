@@ -4,7 +4,11 @@ use bottomless_pit::input::Key;
 use bottomless_pit::material::{Material, MaterialBuilder};
 use bottomless_pit::render::RenderInformation;
 use bottomless_pit::texture::Texture;
+use bottomless_pit::vec2;
 use bottomless_pit::vectors::Vec2;
+
+use crate::collision::{self, line_in_rect, point_in_rect};
+use crate::level::{Level, Platform};
 
 const PLAYER_ACCELERATION: f32 = 60.0;
 const PLAYER_DECLERATION: f32 = 100.0;
@@ -12,13 +16,15 @@ const PLAYER_TURN_SPEED: f32 = 250.0;
 const PLAYER_MAX_SPEED: f32 = 120.0;
 const PLAYER_FALL_ACCELERATION: f32 = 80.0;
 const MAX_FALL_SPEED: f32 = 200.0;
+const PLAYER_SIZE: Vec2<f32> = vec2!(96.0, 114.0);
 
 pub struct Character {
     pos: Vec2<f32>,
     speed: Vec2<f32>,
+    size: Vec2<f32>,
     fastest_y: f32,
     material: Material,
-    grounded: bool,
+    state: PlayerState,
 }
 
 impl Character {
@@ -32,20 +38,39 @@ impl Character {
         Self {
             pos: Vec2{x: 0.0, y: 0.0},
             speed: Vec2{x: 0.0, y: 0.0},
+            size: PLAYER_SIZE,
             material,
             fastest_y: 0.0,
-            grounded: false,
+            state: PlayerState::Falling,
         }
     }
 
-    pub fn update(&mut self, dt: f32, engine: &mut Engine) {
-        if self.grounded {
-            self.grounded_movement(dt, engine);
-        } else {
-            self.air_movment(dt);
+    pub fn get_pos(&self) -> Vec2<f32> {
+        self.pos
+    }
+
+    pub fn get_size(&self) -> Vec2<f32> {
+        self.size
+    }
+
+    pub fn update(&mut self, dt: f32, engine: &mut Engine, level: &Level) {
+        // if self.grounded {
+        //     self.grounded_movement(dt, engine);
+        // } else {
+        //     self.air_movment(dt);
+        // }
+        match self.state {
+            PlayerState::Grounded => self.grounded_movement(dt, engine),
+            PlayerState::Falling => self.air_movment(dt),
+            _ => unimplemented!(),
         }
 
         self.pos += self.speed.scale(dt);
+
+        let not_collided = level.get_platforms().iter().all(|p| !self.bottom_collision(p));
+        if not_collided {
+            self.state = PlayerState::Falling;
+        }
 
 
         print!("{esc}c", esc = 27 as char);
@@ -53,6 +78,8 @@ impl Character {
         println!("fastest y: {:?}", self.fastest_y);
         println!("dt: {:.5}", dt);
         println!("frame rate: {:.0}", engine.get_stable_fps());
+        println!("mouse over_player: {}", collision::point_in_rect(engine.get_mouse_position(), self.pos, self.size));
+        println!("player state: {:?}", self.state);
     }
 
     fn grounded_movement(&mut self, dt: f32, engine: &mut Engine) {
@@ -81,7 +108,6 @@ impl Character {
 
         if engine.is_key_down(Key::Space) {
             self.speed.y = -100.0;
-            self.grounded = false;
         }
 
         // caps both backwards and forwards speed
@@ -94,16 +120,31 @@ impl Character {
     fn air_movment(&mut self, dt: f32) {
         self.speed.y += PLAYER_FALL_ACCELERATION * dt;
         self.speed.y = self.speed.y.min(MAX_FALL_SPEED);
-        // shoe in before solids/platforms are added
-        if self.pos.y >= 600.0 - 114.0 {
-            self.grounded = true;
-            self.pos.y = 600.0 - 114.0;
+    }
+
+    fn transition_sate(&mut self, new_state: PlayerState) {
+        //do stuff
+        match (self.state, new_state) {
+            (_, _) => {}
+        }
+    }
+
+    fn bottom_collision(&mut self, platform: &Platform) -> bool {
+        let bottom_left = point_in_rect(vec2!(self.pos.x, self.pos.y + self.size.y), platform.pos, platform.size);
+        let bottom_right = point_in_rect(vec2!(self.pos.x + self.size.x, self.pos.y + self.size.y), platform.pos, platform.size);
+
+        if bottom_left || bottom_right {
+            self.state = PlayerState::Grounded;
+            self.pos.y = platform.pos.y - self.size.y;
             self.speed.y = 0.0;
+            true
+        } else {
+            false
         }
     }
 
     pub fn draw<'p, 'o>(&'o mut self, renderer: &mut RenderInformation<'p, 'o>) where 'o: 'p {
-        self.material.add_rectangle(self.pos, Vec2{x: 96.0, y: 114.0}, Colour::WHITE, &renderer);
+        self.material.add_rectangle(self.pos, self.size, Colour::WHITE, &renderer);
 
         self.material.draw(renderer);
     }
@@ -125,6 +166,7 @@ fn move_towards(current: f32, target: f32, max_delta: f32) -> f32 {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 enum PlayerState {
     Grounded,
     Jumping,
