@@ -36,7 +36,7 @@ impl Character {
             .build(engine);
 
         Self {
-            pos: Vec2{x: 0.0, y: 0.0},
+            pos: Vec2{x: 0.0, y: -200.0},
             speed: Vec2{x: 0.0, y: 0.0},
             size: PLAYER_SIZE,
             material,
@@ -49,8 +49,20 @@ impl Character {
         self.pos
     }
 
+    pub fn get_cetner(&self) -> Vec2<f32> {
+        vec2!(self.pos.x + self.size.x / 2.0, self.pos.y + self.size.y / 2.0)
+    } 
+
     pub fn get_size(&self) -> Vec2<f32> {
         self.size
+    }
+
+    pub fn get_speed(&self) -> Vec2<f32> {
+        self.speed
+    }
+
+    pub fn get_state(&self) -> PlayerState {
+        self.state
     }
 
     pub fn update(&mut self, dt: f32, engine: &mut Engine, level: &Level) {
@@ -73,13 +85,19 @@ impl Character {
         }
 
 
-        print!("{esc}c", esc = 27 as char);
-        println!("speed: {:?}", self.speed);
-        println!("fastest y: {:?}", self.fastest_y);
-        println!("dt: {:.5}", dt);
-        println!("frame rate: {:.0}", engine.get_stable_fps());
-        println!("mouse over_player: {}", collision::point_in_rect(engine.get_mouse_position(), self.pos, self.size));
-        println!("player state: {:?}", self.state);
+        // print!("{esc}c", esc = 27 as char);
+        // println!("speed: {:?}", self.speed);
+        // println!("fastest y: {:?}", self.fastest_y);
+        // println!("dt: {:.5}", dt);
+        // println!("frame rate: {:.0}", engine.get_stable_fps());
+        // println!("mouse over_player: {}", collision::point_in_rect(engine.get_mouse_position(), self.pos, self.size));
+        // println!("player state: {:?}", self.state);
+    }
+
+    pub fn request_transition(&mut self, new_state: PlayerState, reason: TransReason) {
+        match (self.state, new_state, reason) {
+            (_, _, _) => todo!()
+        }
     }
 
     fn grounded_movement(&mut self, dt: f32, engine: &mut Engine) {
@@ -122,13 +140,6 @@ impl Character {
         self.speed.y = self.speed.y.min(MAX_FALL_SPEED);
     }
 
-    fn transition_sate(&mut self, new_state: PlayerState) {
-        //do stuff
-        match (self.state, new_state) {
-            (_, _) => {}
-        }
-    }
-
     fn bottom_collision(&mut self, platform: &Platform) -> bool {
         let bottom_left = point_in_rect(vec2!(self.pos.x, self.pos.y + self.size.y), platform.pos, platform.size);
         let bottom_right = point_in_rect(vec2!(self.pos.x + self.size.x, self.pos.y + self.size.y), platform.pos, platform.size);
@@ -167,8 +178,15 @@ fn move_towards(current: f32, target: f32, max_delta: f32) -> f32 {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum PlayerState {
+pub enum PlayerState {
     Grounded,
     Jumping,
     Falling,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum TransReason {
+    GroudCollision,
+    JumpStart,
+    NothingBellow,
 }

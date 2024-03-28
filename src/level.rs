@@ -4,7 +4,6 @@ use bottomless_pit::render::RenderInformation;
 use bottomless_pit::vectors::Vec2;
 
 use crate::collision;
-use crate::character::Character;
 
 pub struct Level {
     platforms: Vec<Platform>,
@@ -17,15 +16,6 @@ impl Level {
             platforms,
             platform_material,
         }
-    }
-
-    pub fn check_player_collision(&self, player: &Character) -> Option<usize> {
-        self
-            .platforms
-            .iter()
-            .enumerate()
-            .find(|(_, p)| p.check_collision(player.get_pos(), player.get_size()))
-            .map(|(i, _)| i)
     }
 
     pub fn get_platforms(&self) -> &[Platform] {
