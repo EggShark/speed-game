@@ -7,7 +7,7 @@ use bottomless_pit::texture::{SamplerType, Texture};
 use bottomless_pit::vec2;
 use bottomless_pit::vectors::Vec2;
 
-use crate::collision::{self, line_in_rect, point_in_rect};
+use crate::collision::point_in_rect;
 use crate::level::{Level, Platform};
 
 const PLAYER_ACCELERATION: f32 = 60.0;
@@ -65,42 +65,49 @@ impl Character {
         self.state
     }
 
-    pub fn update(&mut self, dt: f32, engine: &mut Engine, level: &Level) {
-        // if self.grounded {
-        //     self.grounded_movement(dt, engine);
-        // } else {
-        //     self.air_movment(dt);
-        // }
+    pub fn update(&mut self, dt: f32, engine: &Engine, level: &Level) {
         match self.state {
             PlayerState::Grounded => self.grounded_movement(dt, engine),
             PlayerState::Falling => self.air_movment(dt),
+            PlayerState::Jumping => self.jumping_movement(dt, engine),
             _ => unimplemented!(),
         }
 
         self.pos += self.speed.scale(dt);
 
         let not_collided = level.get_platforms().iter().all(|p| !self.bottom_collision(p));
-        if not_collided {
-            self.state = PlayerState::Falling;
+        if not_collided && self.state != PlayerState::Falling {
+            self.request_transition(PlayerState::Falling, TransReason::NothingBellow);
         }
-
-
-        // print!("{esc}c", esc = 27 as char);
-        // println!("speed: {:?}", self.speed);
-        // println!("fastest y: {:?}", self.fastest_y);
-        // println!("dt: {:.5}", dt);
-        // println!("frame rate: {:.0}", engine.get_stable_fps());
-        // println!("mouse over_player: {}", collision::point_in_rect(engine.get_mouse_position(), self.pos, self.size));
-        // println!("player state: {:?}", self.state);
     }
 
     pub fn request_transition(&mut self, new_state: PlayerState, reason: TransReason) {
         match (self.state, new_state, reason) {
+            (PlayerState::Grounded, PlayerState::Grounded, _) => {},
+            (PlayerState::Grounded, PlayerState::Jumping, TransReason::JumpStart) => {
+                self.state = PlayerState::Jumping;
+            },
+            (PlayerState::Grounded, PlayerState::Falling, TransReason::NothingBellow) => {
+                self.state = PlayerState::Falling;
+            },
+            (PlayerState::Jumping, PlayerState::Jumping, _) => {},
+            (PlayerState::Jumping, PlayerState::Falling, TransReason::NothingBellow) => {
+                if self.speed.y > 0.0 {
+                    self.state = PlayerState::Falling;
+                }
+            },
+            (PlayerState::Jumping, PlayerState::Grounded, TransReason::GroudCollision) => {
+                self.state = PlayerState::Grounded;
+            },
+            (PlayerState::Falling, PlayerState::Falling, _) => {},
+            (PlayerState::Falling, PlayerState::Grounded, TransReason::GroudCollision) => {
+                self.state = PlayerState::Grounded;
+            },
             (_, _, _) => todo!()
         }
     }
 
-    fn grounded_movement(&mut self, dt: f32, engine: &mut Engine) {
+    fn grounded_movement(&mut self, dt: f32, engine: &Engine) {
         let mut move_x: f32 = 0.0;
 
         if engine.is_key_down(Key::D) {
@@ -126,6 +133,7 @@ impl Character {
 
         if engine.is_key_down(Key::Space) {
             self.speed.y = -100.0;
+            self.request_transition(PlayerState::Jumping, TransReason::JumpStart);
         }
 
         // caps both backwards and forwards speed
@@ -140,12 +148,20 @@ impl Character {
         self.speed.y = self.speed.y.min(MAX_FALL_SPEED);
     }
 
+    fn jumping_movement(&mut self, dt: f32, engine: &Engine) {
+        self.speed.y += PLAYER_FALL_ACCELERATION * dt;
+
+        if engine.is_key_released(Key::Space) {
+            self.speed.y = f32::min(self.speed.y + 40.0, 0.0);
+        }
+    }
+
     fn bottom_collision(&mut self, platform: &Platform) -> bool {
         let bottom_left = point_in_rect(vec2!(self.pos.x, self.pos.y + self.size.y), platform.pos, platform.size);
         let bottom_right = point_in_rect(vec2!(self.pos.x + self.size.x, self.pos.y + self.size.y), platform.pos, platform.size);
 
         if bottom_left || bottom_right {
-            self.state = PlayerState::Grounded;
+            self.request_transition(PlayerState::Grounded, TransReason::GroudCollision);
             self.pos.y = platform.pos.y - self.size.y;
             self.speed.y = 0.0;
             true
@@ -177,7 +193,8 @@ fn move_towards(current: f32, target: f32, max_delta: f32) -> f32 {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum PlayerState {
     Grounded,
     Jumping,
@@ -185,6 +202,7 @@ pub enum PlayerState {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub enum TransReason {
     GroudCollision,
     JumpStart,
