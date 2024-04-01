@@ -34,6 +34,7 @@ impl Level {
 pub struct Platform {
     pub pos: Vec2<f32>,
     pub size: Vec2<f32>,
+    pub friction: f32,
 }
 
 impl Platform {
@@ -41,6 +42,7 @@ impl Platform {
         Self {
             pos,
             size,
+            friction: 1.0,
         }
     }
 

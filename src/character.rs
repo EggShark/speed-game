@@ -10,10 +10,15 @@ use bottomless_pit::vectors::Vec2;
 use crate::collision::point_in_rect;
 use crate::level::{Level, Platform};
 
-const PLAYER_ACCELERATION: f32 = 60.0;
+const PLAYER_ACCELERATION: f32 = 190.0;
 const PLAYER_DECLERATION: f32 = 100.0;
 const PLAYER_TURN_SPEED: f32 = 250.0;
-const PLAYER_MAX_SPEED: f32 = 120.0;
+const PLAYER_MAX_SPEED: f32 = 200.0;
+const PLAYER_MAX_AIRSPEED: f32 = 200.0;
+const PLAYER_AIR_ACCEL: f32 = 145.0;
+const PLAYER_AIR_DECEL: f32 = 50.0;
+const PLAYER_AIR_TURN_SPEED: f32 = 150.0;
+
 const PLAYER_FALL_ACCELERATION: f32 = 80.0;
 const MAX_FALL_SPEED: f32 = 200.0;
 const PLAYER_SIZE: Vec2<f32> = vec2!(96.0, 114.0);
@@ -25,6 +30,7 @@ pub struct Character {
     fastest_y: f32,
     material: Material,
     state: PlayerState,
+    friction: f32,
 }
 
 impl Character {
@@ -42,6 +48,7 @@ impl Character {
             material,
             fastest_y: 0.0,
             state: PlayerState::Falling,
+            friction: 1.0,
         }
     }
 
@@ -68,7 +75,7 @@ impl Character {
     pub fn update(&mut self, dt: f32, engine: &Engine, level: &Level) {
         match self.state {
             PlayerState::Grounded => self.grounded_movement(dt, engine),
-            PlayerState::Falling => self.air_movment(dt),
+            PlayerState::Falling => self.air_movment(dt, engine),
             PlayerState::Jumping => self.jumping_movement(dt, engine),
             _ => unimplemented!(),
         }
@@ -108,6 +115,20 @@ impl Character {
     }
 
     fn grounded_movement(&mut self, dt: f32, engine: &Engine) {
+        self.horizontal_movment(engine, dt, [PLAYER_TURN_SPEED, PLAYER_ACCELERATION, PLAYER_DECLERATION, PLAYER_MAX_SPEED]);
+
+        if engine.is_key_down(Key::Space) {
+            self.jump_action();
+        }
+
+        // caps both backwards and forwards speed
+        self.speed.x = self.speed.x.min(PLAYER_MAX_SPEED);
+        self.speed.x = self.speed.x.max(-PLAYER_MAX_SPEED);
+
+        self.fastest_y = self.speed.y.max(self.fastest_y);
+    }
+
+    fn horizontal_movment(&mut self, engine: &Engine, dt: f32, constants: [f32; 4]) {
         let mut move_x: f32 = 0.0;
 
         if engine.is_key_down(Key::D) {
@@ -120,40 +141,44 @@ impl Character {
 
         // if they dont have the same sign ur turning
         let max_speed = if move_x != 0.0 && self.speed.x.is_sign_positive() != move_x.is_sign_positive() {
-            dt * PLAYER_TURN_SPEED
+            dt * constants[0]
         } else {
-            dt * PLAYER_ACCELERATION
+            dt * constants[1]
         };
 
         if move_x == 0.0 {
-            self.speed.x = move_towards(self.speed.x, 0.0, PLAYER_DECLERATION * dt);
+            self.speed.x = move_towards(self.speed.x, 0.0, constants[2] * dt);
         } else {
-            self.speed.x = move_towards(self.speed.x, move_x * PLAYER_MAX_SPEED, max_speed);
+            self.speed.x = move_towards(self.speed.x, move_x * constants[3], max_speed);
         }
-
-        if engine.is_key_down(Key::Space) {
-            self.speed.y = -100.0;
-            self.request_transition(PlayerState::Jumping, TransReason::JumpStart);
-        }
-
-        // caps both backwards and forwards speed
-        self.speed.x = self.speed.x.min(PLAYER_MAX_SPEED);
-        self.speed.x = self.speed.x.max(-PLAYER_MAX_SPEED);
-
-        self.fastest_y = self.speed.y.max(self.fastest_y);
     }
 
-    fn air_movment(&mut self, dt: f32) {
+    fn air_movment(&mut self, dt: f32, engine: &Engine) {
         self.speed.y += PLAYER_FALL_ACCELERATION * dt;
         self.speed.y = self.speed.y.min(MAX_FALL_SPEED);
+
+        // if self.speed.y >= -20.0 && self.speed.y <= 20.0 {
+        //     println!("top of jump?");
+        // } else {
+        //     println!("normal jump");
+        // }
+        self.horizontal_movment(engine, dt, [PLAYER_AIR_TURN_SPEED, PLAYER_AIR_ACCEL, PLAYER_AIR_DECEL, PLAYER_MAX_AIRSPEED])
     }
 
     fn jumping_movement(&mut self, dt: f32, engine: &Engine) {
-        self.speed.y += PLAYER_FALL_ACCELERATION * dt;
-
         if engine.is_key_released(Key::Space) {
             self.speed.y = f32::min(self.speed.y + 40.0, 0.0);
         }
+
+        self.air_movment(dt, engine);
+    }
+
+    fn jump_action(&mut self) {
+        if self.state == PlayerState::Grounded {
+            self.speed.y = -(2.0_f32 * PLAYER_FALL_ACCELERATION * 100.0).sqrt();
+        }
+
+        self.request_transition(PlayerState::Jumping, TransReason::JumpStart);
     }
 
     fn bottom_collision(&mut self, platform: &Platform) -> bool {
@@ -164,6 +189,7 @@ impl Character {
             self.request_transition(PlayerState::Grounded, TransReason::GroudCollision);
             self.pos.y = platform.pos.y - self.size.y;
             self.speed.y = 0.0;
+            self.friction = platform.friction;
             true
         } else {
             false
