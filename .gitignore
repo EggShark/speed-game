@@ -1,3 +1,4 @@
 /target
 *.cs
 Cargo.lock
+test_file.sgld

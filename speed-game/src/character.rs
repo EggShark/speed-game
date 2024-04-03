@@ -7,8 +7,8 @@ use bottomless_pit::texture::{SamplerType, Texture};
 use bottomless_pit::vec2;
 use bottomless_pit::vectors::Vec2;
 
-use crate::collision::point_in_rect;
-use crate::level::{Level, Platform};
+use utils::collision::point_in_rect;
+use level_editor::level::{Level, Platform};
 
 const PLAYER_ACCELERATION: f32 = 190.0;
 const PLAYER_DECLERATION: f32 = 100.0;
@@ -35,7 +35,7 @@ pub struct Character {
 
 impl Character {
     pub fn new(engine: &mut Engine) -> Self {
-        let texture = Texture::new_with_sampler(engine, "assets/shork.png", SamplerType::NearestNeighbor);
+        let texture = Texture::new_with_sampler(engine, "speed-game/assets/shork.png", SamplerType::NearestNeighbor);
 
         let material = MaterialBuilder::new()
             .add_texture(texture)
