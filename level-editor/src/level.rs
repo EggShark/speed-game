@@ -1,4 +1,5 @@
 use std::fs::{File, OpenOptions};
+use std::os::unix::raw::dev_t;
 use std::path::Path;
 use std::io::{BufReader, Read, Write};
 
@@ -126,11 +127,37 @@ impl Platform {
         }
     }
 
+    pub fn from_corners(c1: Vec2<f32>, c2: Vec2<f32>) -> Self {
+        let delta = c2 - c1;
+        match (delta.x.is_sign_negative(), delta.y.is_sign_negative()) {
+            (false, false) => Self {
+                pos: c1,
+                size: delta,
+                friction: 1.0,
+            },
+            (true, false) => Self {
+                pos: vec2!(c2.x, c1.y),
+                size: vec2!(-delta.x, delta.y),
+                friction: 1.0,
+            },
+            (true, true) => Self {
+                pos: c2,
+                size: delta.scale(-1.0),
+                friction: 1.0,
+            },
+            (false, true) => Self {
+                pos: vec2!(c1.x, c2.y),
+                size: vec2!(delta.x, -delta.y),
+                friction: 1.0,
+            }
+        }
+    }
+
     pub fn check_collision(&self, other_pos: Vec2<f32>, other_size: Vec2<f32>) -> bool {
         collision::rect_in_rect(self.pos, self.size, other_pos, other_size)
     }
 
-    fn draw(&self, mat: &mut Material, renderer: &RenderInformation) {
+    pub fn draw(&self, mat: &mut Material, renderer: &RenderInformation) {
         mat.add_rectangle(self.pos, self.size, Colour::WHITE, renderer);
     }
 
