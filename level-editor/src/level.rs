@@ -1,5 +1,4 @@
 use std::fs::{File, OpenOptions};
-use std::os::unix::raw::dev_t;
 use std::path::Path;
 use std::io::{BufReader, Read, Write};
 
@@ -38,6 +37,10 @@ impl Level {
         }
 
         platform_material.draw(renderer);
+    }
+
+    pub(crate) fn add_platform(&mut self, platform: Platform) {
+        self.platforms.push(platform);
     }
 
     pub(crate) fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), std::io::Error> {
