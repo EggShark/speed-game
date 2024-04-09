@@ -9,3 +9,4 @@ edition = "2021"
 utils = {path = "../utils"}
 bottomless-pit = {git = "https://github.com/EggShark/bottomless-pit.git"}
 bytemuck = "1.15.0"
+rfd = "0.14.1"

@@ -27,7 +27,6 @@ fn main() {
 struct SpeedGame {
     player: Character,
     current_level: Level,
-    platform_material: Material,
     camera: Camera,
     debug: DebugText,
 }
@@ -44,12 +43,12 @@ impl SpeedGame {
                 Platform::new(vec2!(10.0, 200.0), vec2!(300.0, 100.0)),
                 Platform::new(vec2!(0.0, 600.0), vec2!(600.0, 50.0)),
             ],
+            platform_material
         );
 
         Self {
             player,
             current_level,
-            platform_material,
             camera,
             debug,
         }
@@ -69,7 +68,7 @@ impl Game for SpeedGame {
 
     fn render<'pass, 'others>(&'others mut self, mut renderer: RenderInformation<'pass, 'others>) where 'others: 'pass {
         self.camera.set_active(&mut renderer);
-        self.current_level.draw(&mut self.platform_material, &mut renderer);
+        self.current_level.draw(&mut renderer);
         self.player.draw(&mut renderer);
 
         self.debug.draw(&mut renderer);

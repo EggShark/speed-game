@@ -1,7 +1,8 @@
 use bottomless_pit::render::RenderInformation;
-use bottomless_pit::{engine_handle::Engine, material::Material};
+use bottomless_pit::engine_handle::Engine;
+use bottomless_pit::material::Material;
 use bottomless_pit::input::MouseKey;
-use bottomless_pit::{material, vec2};
+use bottomless_pit::vec2;
 use bottomless_pit::vectors::Vec2;
 
 use crate::level::{Level, Platform};
@@ -37,10 +38,13 @@ impl Tool for PlatformTool {
         self.mouse_pressed_pos = mouse_pos;
     }
 
-    fn on_mouse_release(&mut self, _: Vec2<f32>, level: &mut Level) {
+    fn on_mouse_release(&mut self, mouse_pos: Vec2<f32>, level: &mut Level) {
         let p = self.preview_platform.take().unwrap();
+        let delta = self.mouse_pressed_pos - mouse_pos;
 
-        level.add_platform(p);
+        if delta.x != 0.0 && delta.y != 0.0 {
+            level.add_platform(p);
+        }
     }
 
     fn update(&mut self, engine: &mut Engine, level: &mut Level) {

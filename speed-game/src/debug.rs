@@ -85,7 +85,7 @@ impl DebugText {
     }
 
     pub fn prepare(&mut self, engine: &mut Engine) {
-        if engine.is_key_pressed(Key::F3) || engine.is_key_down(Key::P) {
+        if engine.is_key_pressed(Key::F3) || engine.is_key_pressed(Key::P) {
             self.active = !self.active;
         }
 

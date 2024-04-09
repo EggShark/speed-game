@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::path::Path;
-use std::io::{BufReader, Read, Write};
+use std::io::{self, BufReader, Read, Write};
 
 use bottomless_pit::colour::Colour;
 use bottomless_pit::material::Material;
@@ -13,13 +13,48 @@ use utils::collision;
 // SGLD in bytes
 const FILE_HEADER: [u8; 4] = [115, 103, 108, 100];
 
-#[derive(Debug, PartialEq)]
+
 pub struct Level {
+    platform_material: Material,
+    inner: InnerLevel
+}
+
+impl Level {
+    pub fn new(platforms: Vec<Platform>, platform_material: Material) -> Self {
+        Self {
+            platform_material,
+            inner: InnerLevel::new(platforms),
+        }
+    }
+
+    pub fn get_platforms(&self) -> &[Platform] {
+        self.inner.get_platforms()
+    }
+
+    pub fn draw<'p, 'o>(&'o mut self, renderer: &mut RenderInformation<'p, 'o>) where 'o: 'p {
+        self.inner.draw(&mut self.platform_material, renderer);
+    } 
+
+    pub fn get_platform_mat(&mut self) -> &mut Material {
+        &mut self.platform_material
+    }
+
+    pub(crate) fn add_platform(&mut self, platform: Platform) {
+        self.inner.add_platform(platform);
+    }
+
+    pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), io::Error> {
+        self.inner.write_to_file(path)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct InnerLevel {
     platforms: Vec<Platform>,
     player_start: Vec2<f32>,
 }
 
-impl Level {
+impl InnerLevel {
     pub fn new(platforms: Vec<Platform>) -> Self {
         Self {
             platforms,
@@ -202,21 +237,21 @@ mod tests {
 
     #[test]
     fn write_level_to_file() {
-        let level = Level::new(
+        let level = InnerLevel::new(
             vec![
                 Platform::new(vec2!(10.0, 200.0), vec2!(300.0, 100.0)),
                 Platform::new(vec2!(0.0, 600.0), vec2!(600.0, 50.0)),
             ],
         );
 
-        level.write_to_file("test_file.sgld").unwrap();
+        level.write_to_file("testingstuff/test_file.sgld").unwrap();
     }
 
     #[test]
     fn read_level_from_file() {
-        let l = Level::read_from_file("test_file.sgld").unwrap();
+        let l = InnerLevel::read_from_file("testingstuff/test_file.sgld").unwrap();
 
-        let orignial_level = Level::new(
+        let orignial_level = InnerLevel::new(
             vec![
                 Platform::new(vec2!(10.0, 200.0), vec2!(300.0, 100.0)),
                 Platform::new(vec2!(0.0, 600.0), vec2!(600.0, 50.0)),
