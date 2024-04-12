@@ -166,28 +166,14 @@ impl Platform {
     }
 
     pub fn from_corners(c1: Vec2<f32>, c2: Vec2<f32>) -> Self {
-        let delta = c2 - c1;
-        match (delta.x.is_sign_negative(), delta.y.is_sign_negative()) {
-            (false, false) => Self {
-                pos: c1,
-                size: delta,
-                friction: 1.0,
-            },
-            (true, false) => Self {
-                pos: vec2!(c2.x, c1.y),
-                size: vec2!(-delta.x, delta.y),
-                friction: 1.0,
-            },
-            (true, true) => Self {
-                pos: c2,
-                size: delta.scale(-1.0),
-                friction: 1.0,
-            },
-            (false, true) => Self {
-                pos: vec2!(c1.x, c2.y),
-                size: vec2!(delta.x, -delta.y),
-                friction: 1.0,
-            }
+        let size = c1 - c2;
+        let size = vec2!(size.x.abs(), size.y.abs());
+        let pos = vec2!(c1.x.min(c2.x), c1.y.min(c2.y));
+        
+        Self {
+            size,
+            pos,
+            friction: 1.0,
         }
     }
 

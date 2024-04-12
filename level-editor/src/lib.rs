@@ -1,2 +1,3 @@
 pub mod level;
-pub mod tools;
+mod tools;
+pub mod editor;
