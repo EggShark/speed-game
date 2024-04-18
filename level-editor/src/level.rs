@@ -13,7 +13,7 @@ use utils::collision;
 // SGLD in bytes
 const FILE_HEADER: [u8; 4] = [115, 103, 108, 100];
 
-
+#[derive(Debug)]
 pub struct Level {
     platform_material: Material,
     inner: InnerLevel
@@ -37,6 +37,10 @@ impl Level {
 
     pub fn get_platform_mat(&mut self) -> &mut Material {
         &mut self.platform_material
+    }
+
+    pub(crate) fn move_selected_platforms(&mut self, delta: Vec2<f32>) {
+        self.inner.move_selected_platforms(delta);
     }
 
     pub(crate) fn add_platform(&mut self, platform: Platform) {
@@ -76,6 +80,10 @@ impl InnerLevel {
 
     pub(crate) fn add_platform(&mut self, platform: Platform) {
         self.platforms.push(platform);
+    }
+
+    pub(crate) fn move_selected_platforms(&mut self, delta: Vec2<f32>) {
+        self.platforms.iter_mut().for_each(|p| p.pos += delta);
     }
 
     pub(crate) fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), std::io::Error> {

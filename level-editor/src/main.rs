@@ -11,7 +11,7 @@ fn main() {
     let material = MaterialBuilder::new()
         .build(&mut engine);
 
-    let editor = Editor::new(material);
+    let editor = Editor::new(material, &mut engine);
 
     engine.run(editor);
 }

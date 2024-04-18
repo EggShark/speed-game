@@ -16,7 +16,7 @@ pub trait Tool {
     fn can_switch(&self) -> bool;
     fn update(&mut self, engine: &mut Engine, editor: &mut EditorContext);
     fn init(&mut self, _editor: &mut EditorContext) {}
-    fn draw(&self, material: &mut Material, renderer: &mut RenderInformation);
+    fn draw(&self, material: &mut Material, editor: &EditorContext, renderer: &mut RenderInformation);
 }
 
 #[derive(Debug)]
@@ -67,13 +67,14 @@ impl Tool for PlatformTool {
         }
     }
 
-    fn draw(&self, material: &mut Material, renderer: &mut RenderInformation) {
+    fn draw(&self, material: &mut Material, _: &EditorContext, renderer: &mut RenderInformation) {
         if let Some(p) = &self.preview_platform {
             p.draw(material, renderer);
         }
     }
 }
 
+#[derive(Debug)]
 pub struct Selector {
     mouse_pressed_pos: Vec2<f32>,
     mouse_current_pos: Vec2<f32>,
@@ -126,7 +127,7 @@ impl Tool for Selector {
             .collect::<Vec<usize>>();
     }
 
-    fn draw(&self, material: &mut Material, renderer: &mut RenderInformation) {
+    fn draw(&self, material: &mut Material, _: &EditorContext, renderer: &mut RenderInformation) {
         let thickness = 1.0_f32;
 
         if self.mouse_down {
@@ -148,6 +149,69 @@ impl Tool for Selector {
             material.add_rectangle(vec2!(x_start, y_start), vec2!(thickness, size.y * y_mult), Colour::RED, &renderer);
             material.add_rectangle(vec2!(x_end, y_start), vec2!(thickness, (size.y * y_mult) + thickness), Colour::RED, &renderer);
             material.add_rectangle(vec2!(x_start, y_end), vec2!((size.x * x_mult) + thickness, thickness), Colour::RED, &renderer);         
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveTool {
+    last_recorded_mouse: Vec2<f32>,
+    total_move_delta: Vec2<f32>,
+    mouse_down: bool,
+}
+
+impl MoveTool {
+    pub fn new() -> Self {
+        Self {
+            last_recorded_mouse: vec2!(0.0),
+            total_move_delta: vec2!(0.0),
+            mouse_down: false,
+        }
+    }
+}
+
+impl Tool for MoveTool {
+    fn on_click(&mut self, mouse_pos: Vec2<f32>, _: &mut EditorContext) {
+        self.last_recorded_mouse = mouse_pos;
+        self.mouse_down = true;
+    }
+
+    fn on_mouse_release(&mut self, _: Vec2<f32>, editor: &mut EditorContext) {
+        editor.get_mut_level().move_selected_platforms(self.total_move_delta);
+        self.total_move_delta = vec2!(0.0);
+        self.mouse_down = false;
+
+    }
+
+    fn init(&mut self, _editor: &mut EditorContext) {
+        
+    }
+
+    fn update(&mut self, engine: &mut Engine, _: &mut EditorContext) {
+        let new_mouse_pos = engine.get_mouse_position();
+
+        if self.mouse_down {
+            let delta = new_mouse_pos - self.last_recorded_mouse;
+            self.total_move_delta += delta;
+            self.last_recorded_mouse = new_mouse_pos;
+        }
+        
+    }
+
+    fn can_switch(&self) -> bool {
+        !self.mouse_down
+    }
+
+    fn draw(&self, material: &mut Material, editor: &EditorContext, renderer: &mut RenderInformation) {
+        if self.mouse_down {
+            editor
+                .get_level()
+                .get_platforms()
+                .iter()
+                .enumerate()
+                .filter(|(idx, _)| editor.selection.contains(idx))
+                .map(|(_, p)| (p.pos + self.total_move_delta, p.size))
+                .for_each(|(pos, size)| material.add_rectangle(pos, size, Colour::from_rgba(255.0, 255.0, 255.0, 0.5), &renderer));
         }
     }
 }
