@@ -1,6 +1,6 @@
 use bottomless_pit::material::MaterialBuilder;
 use bottomless_pit::engine_handle::EngineBuilder;
-use level_editor::editor::Editor;
+use level_editor::editor::MainEditor;
 
 
 fn main() {
@@ -8,10 +8,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let material = MaterialBuilder::new()
-        .build(&mut engine);
-
-    let editor = Editor::new(material, &mut engine);
+    let editor = MainEditor::new(&mut engine);
 
     engine.run(editor);
 }

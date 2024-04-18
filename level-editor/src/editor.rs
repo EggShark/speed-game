@@ -4,61 +4,37 @@ use std::path::Path;
 
 use bottomless_pit::input::{Key, MouseKey, ModifierKeys};
 use bottomless_pit::material::{Material, MaterialBuilder};
-use bottomless_pit::Game;
+use bottomless_pit::{Game, vec2};
 use bottomless_pit::engine_handle::Engine;
 use bottomless_pit::render::RenderInformation;
 use bottomless_pit::vectors::Vec2;
-use crate::level::Level;
+use crate::level::{Level, Platform};
 use crate::tools::{MoveTool, PlatformTool, Selector, Tool};
 
 
-pub struct Editor {
-    context: EditorContext,
-    current_tool: Box<dyn Tool>,
+#[derive(Debug)]
+struct EditorWithState<S> {
+    state: S,
     editor_mat: Material,
 }
 
-impl Editor {
-    pub fn new(mat: Material, engine: &mut Engine) -> Self {
-        let level = Level::new(vec![], mat);
-        let context = EditorContext::new(level);
-        let editor_mat = MaterialBuilder::new().build(engine);
+impl EditorWithState<Editing> {
+    fn update(&mut self, engine: &mut Engine) -> Event {
+        let mouse_pos = engine.get_mouse_position();
 
-        Self {
-            context,
-            current_tool: Box::new(PlatformTool::new()),
-            editor_mat,
-        }
-    }
-
-    fn change_tool(&mut self, engine: &mut Engine) {
-        if engine.is_key_pressed(Key::S) {
-            self.current_tool = Box::new(Selector::new());
-        } else if engine.is_key_pressed(Key::P) {
-            self.current_tool = Box::new(PlatformTool::new());
-        } else if engine.is_key_down(Key::M) {
-            self.current_tool = Box::new(MoveTool::new());
-        }
-    }
-}
-
-impl Game for Editor {
-    fn update(&mut self, engine_handle: &mut Engine) {
-        let mouse_pos = engine_handle.get_mouse_position();
-
-        if self.current_tool.can_switch() {
-            self.change_tool(engine_handle);
+        if self.state.current_tool.can_switch() {
+            self.change_tool(engine);
         }
 
-        if engine_handle.is_mouse_key_pressed(MouseKey::Left) {
-            self.current_tool.on_click(mouse_pos, &mut self.context);
-        } else if engine_handle.is_mouse_key_released(MouseKey::Left) {
-            self.current_tool.on_mouse_release(mouse_pos, &mut self.context);
+        if engine.is_mouse_key_pressed(MouseKey::Left) {
+            self.state.current_tool.on_click(mouse_pos, &mut self.state.context);
+        } else if engine.is_mouse_key_released(MouseKey::Left) {
+            self.state.current_tool.on_mouse_release(mouse_pos, &mut self.state.context);
         }
 
-        self.current_tool.update(engine_handle, &mut self.context);
+        self.state.current_tool.update(engine, &mut self.state.context);
 
-        if engine_handle.check_modifiers(ModifierKeys::Ctrl) && engine_handle.is_key_pressed(Key::S) {
+        if engine.check_modifiers(ModifierKeys::Ctrl) && engine.is_key_pressed(Key::S) {
             let working_dir = env::current_dir().unwrap();
 
             let path = rfd::FileDialog::new()
@@ -68,20 +44,169 @@ impl Game for Editor {
                 .save_file();
 
             if let Some(p) = path {
-                self.context.write_level_to_file(p).unwrap();
+                self.state.context.write_level_to_file(p).unwrap();
+            }
+        }
+
+
+        Event::None
+    }
+
+    fn change_tool(&mut self, engine: &mut Engine) {
+        if engine.is_key_pressed(Key::S) {
+            self.state.current_tool = Box::new(Selector::new());
+        } else if engine.is_key_pressed(Key::P) {
+            self.state.current_tool = Box::new(PlatformTool::new());
+        } else if engine.is_key_pressed(Key::M) {
+            self.state.current_tool = Box::new(MoveTool::new());
+        }
+    }
+
+    fn render<'pass, 'others>(&'others mut self, mut renderer: RenderInformation<'pass, 'others>) where 'others: 'pass {
+        self.state.current_tool.draw(&mut self.editor_mat, &mut self.state.context, &mut renderer);
+        self.editor_mat.draw(&mut renderer);
+
+        self.state.context.render(renderer);
+    }
+}
+
+impl EditorWithState<Menu> {
+    fn new(engine: &mut Engine) -> Self {
+        let editor_mat = MaterialBuilder::new().build(engine);
+
+        Self {
+            editor_mat,
+            state: Menu {
+                button_pos: vec![],
             }
         }
     }
 
-    fn render<'pass, 'others>(&'others mut self, mut renderer: RenderInformation<'pass, 'others>)
+    fn update(&mut self, engine: &mut Engine) -> Event {
+        if engine.is_key_down(Key::M) {
+            let level_mat = MaterialBuilder::new().build(engine);
+            Event::OpenLevel(Level::new(vec![Platform::new(vec2!(0.0), vec2!(100.0))], level_mat))
+        } else {
+            Event::None
+        }
+    }
+
+    fn render<'pass, 'others>(&'others mut self, mut renderer: RenderInformation<'pass, 'others>) where 'others: 'pass {
+
+    }
+}
+
+trait CoolTool: Tool + Debug {}
+impl CoolTool for Selector {}
+impl CoolTool for PlatformTool {}
+impl CoolTool for MoveTool {}
+
+#[derive(Debug)]
+struct Menu {
+    button_pos: Vec<Vec2<f32>>,
+}
+
+#[derive(Debug)]
+struct Editing {
+    context: EditorContext,
+    current_tool: Box<dyn CoolTool>,
+}
+
+#[derive(Debug)]
+enum Event {
+    OpenLevel(Level),
+    BackToMenu,
+    None,
+}
+
+#[derive(Debug)]
+enum EditorState {
+    Menu(EditorWithState<Menu>),
+    Editing(EditorWithState<Editing>),
+    Failure(String),
+    Dummy,
+}
+
+impl EditorState {
+    fn new(engine: &mut Engine) -> Self {
+        let menu = EditorWithState::new(engine);
+        Self::Menu(menu)
+    }
+
+    fn next(self, event: Event) -> Self {
+        match (self, event) {
+            (Self::Menu(m), Event::OpenLevel(l)) => Self::Editing((l, m).into()),
+            (s, Event::None) => s,
+            (s, e) => Self::Failure(format!("Bad Combo: {:?}, {:?}", s, e)), 
+        }
+    }
+
+    fn update(&mut self, engine: &mut Engine) -> Event {
+        match self {
+            Self::Menu(m) => m.update(engine),
+            Self::Editing(e) => e.update(engine),
+            Self::Dummy => unreachable!(),
+            Self::Failure(s) => panic!("{}", s),
+        }
+    }
+
+    fn render<'pass, 'others>(&'others mut self, renderer: RenderInformation<'pass, 'others>) {
+        match self {
+            Self::Menu(m) => m.render(renderer),
+            Self::Editing(e) => e.render(renderer),
+            Self::Dummy => unreachable!(),
+            Self::Failure(s) => panic!("{}", s),
+        }
+    }
+}
+
+impl From<(Level, EditorWithState<Menu>)> for EditorWithState<Editing> {
+    fn from((level, value): (Level, EditorWithState<Menu>)) -> Self {
+        Self {
+            state: Editing {
+                context: EditorContext::new(level),
+                current_tool: Box::new(PlatformTool::new()),
+            },
+            editor_mat: value.editor_mat,
+        }
+    }
+}
+
+impl From<EditorWithState<Editing>> for EditorWithState<Menu> {
+    fn from(value: EditorWithState<Editing>) -> Self {
+        Self {
+            state: Menu{ button_pos: Vec::new(),},
+            editor_mat: value.editor_mat,
+        }
+    }
+}
+
+pub struct MainEditor {
+    inner: EditorState,
+}
+
+impl MainEditor {
+    pub fn new(engine: &mut Engine) -> Self {
+        let inner = EditorState::new(engine);
+        Self {
+            inner
+        }
+    }
+}
+
+impl Game for MainEditor {
+    fn update(&mut self, engine_handle: &mut Engine) {
+        let mut dummy = EditorState::Dummy;
+        std::mem::swap(&mut dummy, &mut self.inner);
+        let event = dummy.update(engine_handle);
+        dummy = dummy.next(event);
+        std::mem::swap(&mut dummy, &mut self.inner);
+    }
+
+    fn render<'pass, 'others>(&'others mut self, renderer: RenderInformation<'pass, 'others>)
         where
             'others: 'pass {
-
-        self.current_tool.draw(&mut self.editor_mat, &mut self.context, &mut renderer);
-        self.editor_mat.draw(&mut renderer);
-
-        self.context.render(renderer);
-
+        self.inner.render(renderer)
     }
 }
 
@@ -124,134 +249,3 @@ impl EditorContext {
     }
 }
 
-
-#[derive(Debug)]
-struct EditorWithState<S> {
-    state: S,
-    data: usize,
-    editor_mat: Material,
-}
-
-impl EditorWithState<Editing> {
-    fn update(&mut self, engine: &mut Engine) -> Event {
-
-
-        Event::None
-    }
-
-    fn render<'pass, 'others>(&'others mut self, render_handle: RenderInformation<'pass, 'others>) {
-        
-    }
-}
-
-impl EditorWithState<Menu> {
-    fn update(&mut self, engine: &mut Engine) -> Event {
-
-
-        Event::None
-    }
-
-    fn render<'pass, 'others>(&'others mut self, render_handle: RenderInformation<'pass, 'others>) {
-
-    }
-}
-
-trait CoolTool: Tool + Debug {}
-impl CoolTool for Selector {}
-
-#[derive(Debug)]
-struct Menu {
-    button_pos: Vec<Vec2<f32>>,
-}
-
-#[derive(Debug)]
-struct Editing {
-    context: EditorContext,
-    current_tool: Box<dyn CoolTool>,
-}
-
-#[derive(Debug)]
-enum Event {
-    OpenLevel(Level),
-    BackToMenu,
-    None,
-}
-
-#[derive(Debug)]
-enum EditorState {
-    Menu(EditorWithState<Menu>),
-    Editing(EditorWithState<Editing>),
-    Failure(String),
-    Dummy,
-}
-
-impl EditorState {
-    fn next(self, event: Event) -> Self {
-        match (self, event) {
-            (Self::Menu(m), Event::OpenLevel(l)) => Self::Editing((l, m).into()),
-            (s, Event::None) => s,
-            (s, e) => Self::Failure(format!("Bad Combo: {:?}, {:?}", s, e)), 
-        }
-    }
-
-    fn update(&mut self, engine: &mut Engine) -> Event {
-        match self {
-            Self::Menu(m) => m.update(engine),
-            Self::Editing(e) => e.update(engine),
-            Self::Dummy => unreachable!(),
-            Self::Failure(s) => panic!("{}", s),
-        }
-    }
-
-    fn render<'pass, 'others>(&'others mut self, renderer: RenderInformation<'pass, 'others>) {
-        match self {
-            Self::Menu(m) => m.render(renderer),
-            Self::Editing(e) => e.render(renderer),
-            Self::Dummy => unreachable!(),
-            Self::Failure(s) => panic!("{}", s),
-        }
-    }
-}
-
-impl From<(Level, EditorWithState<Menu>)> for EditorWithState<Editing> {
-    fn from((level, value): (Level, EditorWithState<Menu>)) -> Self {
-        Self {
-            state: Editing {
-                context: EditorContext::new(level),
-                current_tool: Box::new(Selector::new()),
-            },
-            data: value.data,
-            editor_mat: value.editor_mat,
-        }
-    }
-}
-
-impl From<EditorWithState<Editing>> for EditorWithState<Menu> {
-    fn from(value: EditorWithState<Editing>) -> Self {
-        Self {
-            data: value.data,
-            state: Menu{ button_pos: Vec::new(),},
-            editor_mat: value.editor_mat,
-        }
-    }
-}
-
-struct MainEditor {
-    inner: EditorState,
-}
-
-impl Game for MainEditor {
-    fn update(&mut self, engine_handle: &mut Engine) {
-        let mut dummy = EditorState::Dummy;
-        std::mem::swap(&mut dummy, &mut self.inner);
-        let event = dummy.update(engine_handle);
-        dummy = dummy.next(event);
-        std::mem::swap(&mut dummy, &mut self.inner);
-    }
-
-    fn render<'pass, 'others>(&'others mut self, renderer: RenderInformation<'pass, 'others>)
-        where
-            'others: 'pass {
-        self.inner.render(renderer)
-    }
-}
