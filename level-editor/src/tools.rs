@@ -177,7 +177,7 @@ impl Tool for MoveTool {
     }
 
     fn on_mouse_release(&mut self, _: Vec2<f32>, editor: &mut EditorContext) {
-        editor.get_mut_level().move_selected_platforms(self.total_move_delta);
+        editor.move_selected_platforms(self.total_move_delta);
         self.total_move_delta = vec2!(0.0);
         self.mouse_down = false;
 

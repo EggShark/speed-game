@@ -280,8 +280,8 @@ impl EditorContext {
         self.level.write_to_file(path)
     }
 
-    fn get_level_platform_mat(&mut self) -> &mut Material {
-        self.level.get_platform_mat()
+    pub fn move_selected_platforms(&mut self, delta: Vec2<f32>) {
+        self.level.move_selected_platforms(&self.selection, delta);
     }
 
     pub fn get_mut_level(&mut self) -> &mut Level {

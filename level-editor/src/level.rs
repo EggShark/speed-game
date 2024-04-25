@@ -39,8 +39,8 @@ impl Level {
         &mut self.platform_material
     }
 
-    pub(crate) fn move_selected_platforms(&mut self, delta: Vec2<f32>) {
-        self.inner.move_selected_platforms(delta);
+    pub(crate) fn move_selected_platforms(&mut self, selection: &[usize], delta: Vec2<f32>) {
+        self.inner.move_selected_platforms(selection, delta);
     }
 
     pub(crate) fn add_platform(&mut self, platform: Platform) {
@@ -82,8 +82,13 @@ impl InnerLevel {
         self.platforms.push(platform);
     }
 
-    pub(crate) fn move_selected_platforms(&mut self, delta: Vec2<f32>) {
-        self.platforms.iter_mut().for_each(|p| p.pos += delta);
+    pub(crate) fn move_selected_platforms(&mut self, selection: &[usize], delta: Vec2<f32>) {
+        self
+            .platforms
+            .iter_mut()
+            .enumerate()
+            .filter(|(idx, _)| selection.contains(idx))
+            .for_each(|(_, p)| p.pos += delta);
     }
 
     pub(crate) fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), std::io::Error> {
