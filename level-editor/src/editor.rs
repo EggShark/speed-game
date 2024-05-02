@@ -88,13 +88,6 @@ impl EditorWithState<Menu> {
         let _ = self.state.quit_button.update(mouse_pos, &engine, &mut event_to_transmit) ||
             self.check_buttons(mouse_pos, engine, &mut event_to_transmit);
 
-        // if engine.is_key_down(Key::M) {
-        //     let level_mat = MaterialBuilder::new().build(engine);
-        //     Event::OpenLevel(Level::new(vec![Platform::new(vec2!(0.0), vec2!(100.0))], level_mat))
-        // } else {
-        //     Event::None
-        // }
-
         event_to_transmit
     }
 
@@ -212,7 +205,7 @@ impl From<(Level, EditorWithState<Menu>)> for EditorWithState<Editing> {
         Self {
             state: Editing {
                 context: EditorContext::new(level),
-                current_tool: Box::new(PlatformTool::new()),
+                current_tool: Box::new(Selector::new()),
             },
             editor_mat: value.editor_mat,
         }

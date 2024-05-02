@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 utils = {path = "../utils"}
 bottomless-pit = {git = "https://github.com/EggShark/bottomless-pit.git"}
+# bottomless-pit = {path = "../../bottomless-pit"}
 bytemuck = "1.15.0"
 rfd = "0.14.1"

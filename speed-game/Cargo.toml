@@ -9,3 +9,4 @@ edition = "2021"
 level-editor = {path = "../level-editor"}
 utils = {path = "../utils"}
 bottomless-pit = {git = "https://github.com/EggShark/bottomless-pit.git"}
+# bottomless-pit = {path = "../../bottomless-pit"}

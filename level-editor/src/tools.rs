@@ -191,8 +191,7 @@ impl Tool for MoveTool {
         let new_mouse_pos = engine.get_mouse_position();
 
         if self.mouse_down {
-            let delta = new_mouse_pos - self.last_recorded_mouse;
-            self.total_move_delta += delta;
+            self.total_move_delta += engine.get_mouse_delta();
             self.last_recorded_mouse = new_mouse_pos;
         }
         
