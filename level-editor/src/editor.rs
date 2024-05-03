@@ -2,8 +2,10 @@ use std::env;
 use std::fmt::Debug;
 use std::path::Path;
 
+use bottomless_pit::colour::Colour;
 use bottomless_pit::input::{Key, MouseKey, ModifierKeys};
 use bottomless_pit::material::{Material, MaterialBuilder};
+use bottomless_pit::text::TextMaterial;
 use bottomless_pit::{Game, vec2};
 use bottomless_pit::engine_handle::Engine;
 use bottomless_pit::render::RenderInformation;
@@ -77,7 +79,7 @@ impl EditorWithState<Menu> {
 
         Self {
             editor_mat,
-            state: Menu::new(),
+            state: Menu::new(engine),
         }
     }
 
@@ -102,10 +104,12 @@ impl EditorWithState<Menu> {
     }
 
     fn render<'pass, 'others>(&'others mut self, mut renderer: RenderInformation<'pass, 'others>) where 'others: 'pass {
-        self.state.quit_button.render(&mut self.editor_mat, &renderer);
         self.state.to_level.render(&mut self.editor_mat, &renderer);
+        let q_text = self.state.quit_button.render(&mut self.editor_mat, &mut renderer).unwrap();
 
         self.editor_mat.draw(&mut renderer);
+
+        q_text.draw(&mut renderer);
     }
 }
 
@@ -114,31 +118,25 @@ impl CoolTool for Selector {}
 impl CoolTool for PlatformTool {}
 impl CoolTool for MoveTool {}
 
+#[derive(Debug)]
 struct Menu {
     quit_button: CallBackButton<Event>,
     to_level: Button,
 }
 
 impl Menu {
-    fn new() -> Self {
+    fn new(engine: &mut Engine) -> Self {
         let func = |event: &mut Event| { *event = Event::Quit };
 
-        let quit_button = CallBackButton::new(vec2!(100.0), vec2!(100.0), func);
+        let text = TextMaterial::new("Quit", Colour::BLACK, 20.0, 25.0, engine);
+
+        let quit_button = CallBackButton::with_text(vec2!(100.0), vec2!(100.0), func, text, vec2!(0.0));
         let to_level = Button::new(vec2!(100.0), vec2!(250.0, 100.0));
 
         Self {
             quit_button,
             to_level,
         }
-    }
-}
-
-impl Debug for Menu {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f
-            .debug_struct("Menu")
-            .field("quit: Button", &self.quit_button)
-            .finish()
     }
 }
 
@@ -212,11 +210,11 @@ impl From<(Level, EditorWithState<Menu>)> for EditorWithState<Editing> {
     }
 }
 
-impl From<EditorWithState<Editing>> for EditorWithState<Menu> {
-    fn from(value: EditorWithState<Editing>) -> Self {
+impl From<(EditorWithState<Editing>, &mut Engine)> for EditorWithState<Menu> {
+    fn from((editor, engine): (EditorWithState<Editing>, &mut Engine)) -> Self {
         Self {
-            state: Menu::new(),
-            editor_mat: value.editor_mat,
+            state: Menu::new(engine),
+            editor_mat: editor.editor_mat,
         }
     }
 }

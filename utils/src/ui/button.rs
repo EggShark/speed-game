@@ -1,15 +1,22 @@
+use std::fmt::Debug;
+
 use bottomless_pit::colour::Colour;
 use bottomless_pit::engine_handle::Engine;
 use bottomless_pit::input::MouseKey;
 use bottomless_pit::material::Material;
 use bottomless_pit::render::RenderInformation;
+use bottomless_pit::text::TextMaterial;
 use bottomless_pit::vectors::Vec2;
 
 use crate::collision;
 
+use super::InElementText;
+
+#[derive(Debug)]
 pub struct Button {
     position: Vec2<f32>,
     size: Vec2<f32>,
+    text: Option<InElementText>,
 }
 
 impl Button {
@@ -17,6 +24,7 @@ impl Button {
         Self {
             position: pos,
             size,
+            text: None,
         }
     }
 
@@ -34,6 +42,7 @@ pub struct CallBackButton<T> {
     postion: Vec2<f32>,
     size: Vec2<f32>,
     callback: fn(&mut T) -> (),
+    text: Option<InElementText>,
 }
 
 impl<T> CallBackButton<T> {
@@ -42,6 +51,21 @@ impl<T> CallBackButton<T> {
             postion: pos,
             size,
             callback,
+            text: None,
+        }
+    }
+
+    pub fn with_text(pos: Vec2<f32>, size: Vec2<f32>, callback: fn(&mut T) -> (), text: TextMaterial, text_offset: Vec2<f32>) -> Self {
+        let text = InElementText {
+            text,
+            offset: text_offset,
+        };
+
+        Self {
+            postion: pos,
+            size,
+            callback,
+            text: Some(text),
         }
     }
 
@@ -54,8 +78,16 @@ impl<T> CallBackButton<T> {
         }
     }
 
-    pub fn render(&self, mat: &mut Material, renderer: &RenderInformation) {
+    pub fn render(&mut self, mat: &mut Material, renderer: &RenderInformation) -> Option<&mut TextMaterial> {
         mat.add_rectangle(self.postion, self.size, Colour::WHITE, renderer);
+
+        if let Some(text) = &mut self.text {
+            text.text.add_instance(self.postion + text.offset, Colour::WHITE, &renderer);
+
+            Some(&mut text.text)
+        } else {
+            None
+        }
     }
 
     fn on_click(&self, args: &mut T) {
